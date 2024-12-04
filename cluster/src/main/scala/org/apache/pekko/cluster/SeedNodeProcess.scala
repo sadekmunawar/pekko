@@ -131,7 +131,7 @@ private[cluster] abstract class SeedNodeProcess(joinConfigCompatChecker: JoinCon
     logInitJoinAckReceived(origin)
 
     // validates config coming from cluster against this node config
-    joinConfigCompatChecker.check(configCheck.clusterConfig, context.system.settings.config) match {
+    joinConfigCompatChecker.check(ConfigUtil.maybeConvertToPekkoConfig(configCheck.clusterConfig), context.system.settings.config) match {
       case Valid =>
         // first InitJoinAck reply
         context.parent ! JoinTo(joinTo)

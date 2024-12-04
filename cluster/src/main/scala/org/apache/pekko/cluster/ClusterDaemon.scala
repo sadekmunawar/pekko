@@ -637,13 +637,15 @@ private[cluster] class ClusterCoreDaemon(publisher: ActorRef, joinConfigCompatCh
         JoinConfigCompatChecker.filterWithKeys(allowedConfigPaths, context.system.settings.config)
       }
 
+      // If the Joining node has Akka config, then convert to Pekko config
+      val updatedJoiningNodeConfig = ConfigUtil.maybeConvertToPekkoConfig(joiningNodeConfig)
       val configCheckReply =
-        joinConfigCompatChecker.check(joiningNodeConfig, configWithoutSensitiveKeys) match {
+        joinConfigCompatChecker.check(updatedJoiningNodeConfig, configWithoutSensitiveKeys) match {
           case Valid =>
             if (configCheckUnsupportedByJoiningNode)
               ConfigCheckUnsupportedByJoiningNode
             else {
-              val nonSensitiveKeys = JoinConfigCompatChecker.removeSensitiveKeys(joiningNodeConfig, cluster.settings)
+              val nonSensitiveKeys = JoinConfigCompatChecker.removeSensitiveKeys(updatedJoiningNodeConfig, cluster.settings)
               // Send back to joining node a subset of current configuration
               // containing the keys initially sent by the joining node minus
               // any sensitive keys as defined by this node configuration

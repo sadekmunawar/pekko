@@ -22,10 +22,10 @@ import com.typesafe.config.{ Config, ConfigValue, ConfigValueFactory, ConfigValu
 import scala.annotation.nowarn
 
 private[cluster] object ConfigUtil {
+  import org.apache.pekko.util.ccompat.JavaConverters._
 
   @nowarn("msg=deprecated")
   def addAkkaConfig(cfg: Config, akkaVersion: String): Config = {
-    import org.apache.pekko.util.ccompat.JavaConverters._
     val innerSet = cfg.entrySet().asScala
       .filter(e => e.getKey.startsWith("pekko.") && e.getValue.valueType() != ConfigValueType.OBJECT)
       .map { entry =>
@@ -51,4 +51,31 @@ private[cluster] object ConfigUtil {
     }
   }
 
+  def maybeConvertToPekkoConfig(cfg: Config): Config = {
+    if (cfg.hasPath("pekko"))
+      return cfg
+    val innerSet = cfg.entrySet().asScala
+      .filter(e => e.getKey.startsWith("akka.") && e.getValue.valueType() != ConfigValueType.OBJECT)
+      .map { entry =>
+        entry.getKey.replace("akka", "pekko") -> updateAkkaPackageName(entry.getValue)
+      }
+    var newConfig = cfg
+    innerSet.foreach { case (key, value) =>
+      newConfig = newConfig.withValue(key, value)
+    }
+    newConfig
+  }
+
+  private def updateAkkaPackageName(cv: ConfigValue): ConfigValue = {
+    if (cv.valueType() == ConfigValueType.STRING) {
+      val str = cv.unwrapped().toString
+      if (str.startsWith("akka")) {
+        ConfigValueFactory.fromAnyRef(str.replace("akka", "org.apache.pekko"))
+      } else {
+        cv
+      }
+    } else {
+      cv
+    }
+  }
 }
